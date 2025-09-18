@@ -5,6 +5,7 @@ import uuid
 from typing import List, Dict, Tuple
 
 from flask import Flask, request, jsonify, session
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 from embeddings import embed_texts, EMBEDDING_DIMENSION
@@ -18,6 +19,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "44v1usagCjTZLFBXzgxUerRBAxBHk0bL")
+CORS(app, supports_credentials=True)
 
 
 SESSION_STORES: Dict[str, SessionIndex] = {}
@@ -27,7 +29,8 @@ from embeddings import embed_texts
 
 
 def get_or_create_session_store() -> SessionIndex:
-    sid = session.get("sid")
+    # Try to get session ID from header first (for cross-origin), then from session
+    sid = request.headers.get('X-Session-ID') or session.get("sid")
     if not sid:
         sid = str(uuid.uuid4())
         session["sid"] = sid
@@ -35,7 +38,7 @@ def get_or_create_session_store() -> SessionIndex:
     if store is None:
         store = SessionIndex(EMBEDDING_DIMENSION)
         SESSION_STORES[sid] = store
-    return store
+    return store, sid
 from llm_client import generate_with_ollama, build_rag_prompt
 
 
@@ -199,7 +202,7 @@ def index():
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    store = get_or_create_session_store()
+    store, sid = get_or_create_session_store()
     if "files" not in request.files:
         return jsonify({"ok": False, "error": "No files part"}), 400
     files = request.files.getlist("files")
@@ -221,12 +224,12 @@ def upload():
             total_chunks += len(chunks)
         except Exception as e:
             return jsonify({"ok": False, "file": filename, "error": str(e)}), 500
-    return jsonify({"ok": True, "chunks_added": total_chunks, "index_size": store.index.ntotal})
+    return jsonify({"ok": True, "chunks_added": total_chunks, "index_size": store.index.ntotal, "session_id": sid})
 
 
 @app.route("/ask", methods=["POST"])
 def ask():
-    store = get_or_create_session_store()
+    store, sid = get_or_create_session_store()
     try:
         payload = request.get_json(force=True)
     except Exception:
@@ -299,7 +302,7 @@ Answer:"""
 @app.route("/debug-search", methods=["POST"])
 def debug_search():
     """Debug endpoint to see what's happening with search"""
-    store = get_or_create_session_store()
+    store, sid = get_or_create_session_store()
     try:
         payload = request.get_json(force=True)
     except Exception:
@@ -327,10 +330,23 @@ def debug_search():
     })
 
 
+@app.route("/debug-session", methods=["GET"])
+def debug_session():
+    """Debug endpoint to check session state"""
+    store, sid = get_or_create_session_store()
+    return jsonify({
+        "ok": True,
+        "session_id": sid,
+        "total_chunks": store.index.ntotal,
+        "conversation_length": len(store.conversation_history),
+        "sample_chunks": store.text_chunks[:2] if store.text_chunks else []
+    })
+
+
 @app.route("/conversation", methods=["GET"])
 def get_conversation():
     """Get conversation history for current session"""
-    store = get_or_create_session_store()
+    store, sid = get_or_create_session_store()
     with store.lock:
         return jsonify({
             "ok": True,
