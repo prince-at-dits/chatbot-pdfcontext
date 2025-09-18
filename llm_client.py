@@ -18,7 +18,10 @@ def generate_with_ollama(system_prompt: str, user_prompt: str, timeout: int = 12
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ],
-        "stream": False
+        "stream": False,
+        "options": {
+            "num_thread": 20
+        }
     }
     try:
         resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=timeout)

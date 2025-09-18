@@ -2,8 +2,12 @@ import os
 from typing import List
 
 import numpy as np
+import torch
 from sentence_transformers import SentenceTransformer
 
+
+# Configure PyTorch to use 16 threads for sentence transformer
+torch.set_num_threads(16)
 
 EMBED_MODEL_NAME = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 _embedding_model = SentenceTransformer(EMBED_MODEL_NAME)

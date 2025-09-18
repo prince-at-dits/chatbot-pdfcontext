@@ -57,6 +57,9 @@ def index():
       textarea { width: 100%; height: 120px; }
       pre { background: #f7f7f7; padding: 12px; border-radius: 6px; white-space: pre-wrap; }
       button { padding: 8px 12px; }
+      .msg { margin: 8px 0; padding: 8px; border-radius: 6px; }
+      .user { background: #e3f2fd; text-align: right; }
+      .assistant { background: #f1f8e9; }
     </style>
   </head>
   <body>
@@ -68,12 +71,12 @@ def index():
     </div>
     <br/>
     <div class="card">
-      <h2>Ask a question</h2>
+      <h2>Conversation</h2>
+      <div id="conversation" style="max-height:400px; overflow-y:auto; border:1px solid #eee; padding:12px; margin-bottom:12px; background:#fafafa;"></div>
       <textarea id="q" placeholder="Type your question about the uploaded PDFs..."></textarea>
       <button id="askBtn" onclick="ask()">Ask</button>
-      <span id="askLoading" style="display:none; margin-left:8px; color:#555;">Thinking…</span>
+      <span id="askLoading" style="display:none; margin-left:8px; color:#555;">Searching…</span>
       <div id="answerInfo" style="margin-top:8px; font-size:12px; color:#666;"></div>
-      <pre id="ans"></pre>
     </div>
     <br/>
     <div class="card">
@@ -92,20 +95,38 @@ def index():
         const j = await res.json();
         document.getElementById('ingestStatus').textContent = JSON.stringify(j, null, 2);
       }
+      async function loadConversation() {
+        try {
+          const res = await fetch('/conversation');
+          const j = await res.json();
+          const conv = document.getElementById('conversation');
+          if (j.conversation && j.conversation.length > 0) {
+            conv.innerHTML = j.conversation.map(msg => 
+              `<div class="msg ${msg.role}">${msg.content}</div>`
+            ).join('');
+            conv.scrollTop = conv.scrollHeight;
+          } else {
+            conv.innerHTML = '<div style="color:#999; text-align:center;">No conversation yet. Ask a question to start!</div>';
+          }
+        } catch (e) {
+          console.error('Failed to load conversation:', e);
+        }
+      }
+      
       async function ask() {
-        const q = document.getElementById('q').value;
+        const q = document.getElementById('q').value.trim();
+        if (!q) return;
+        
         const btn = document.getElementById('askBtn');
         const loader = document.getElementById('askLoading');
-        const ans = document.getElementById('ans');
         const info = document.getElementById('answerInfo');
         btn.disabled = true;
         loader.style.display = 'inline';
-        ans.textContent = '';
         info.textContent = '';
+        
         try {
           const res = await fetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) });
           const j = await res.json();
-          ans.textContent = j.answer || JSON.stringify(j, null, 2);
           
           // Show additional info
           let infoText = '';
@@ -120,8 +141,11 @@ def index():
             infoText = 'No relevant sources found in documents';
           }
           info.textContent = infoText;
+          
+          document.getElementById('q').value = '';
+          loadConversation();
         } catch (e) {
-          ans.textContent = 'Error: ' + (e && e.message ? e.message : 'request failed');
+          info.textContent = 'Error: ' + (e && e.message ? e.message : 'request failed');
         } finally {
           loader.style.display = 'none';
           btn.disabled = false;
@@ -163,6 +187,9 @@ def index():
           document.getElementById('debugResults').innerHTML = 'Debug error: ' + e.message;
         }
       }
+      
+      // Load conversation on page load
+      window.onload = () => loadConversation();
     </script>
   </body>
 </html>
@@ -208,12 +235,9 @@ def ask():
     if not question:
         return jsonify({"ok": False, "error": "question is required"}), 400
     
-    # Add question to conversation history
     store.add_to_conversation("user", question)
     
-    # Check if this is a general conversation question (no PDFs uploaded)
     if store.index.ntotal == 0:
-        # Handle general conversation
         general_prompt = f"""You are a helpful AI assistant. The user is asking: {question}
 
 Please provide a helpful response. If this seems like a question that would benefit from document context, suggest that they upload relevant PDFs first.
@@ -234,20 +258,15 @@ Answer:"""
             "is_general": True
         })
     
-    # Search for relevant context
     query_emb = embed_texts([question])
-    contexts = store.search(query_emb, top_k=6, min_score=0.1)  # Lowered threshold
+    contexts = store.search(query_emb, top_k=6, min_score=0.1)
     
-    # Get conversation context
     conversation_context = store.get_conversation_context()
     
     if not contexts:
-        # No relevant context found, but we have documents
-        # Let's try a broader search with even lower threshold
         broader_contexts = store.search(query_emb, top_k=10, min_score=0.05)
         if broader_contexts:
-            # Use the broader results but with a warning
-            contexts = broader_contexts[:3]  # Take top 3 from broader search
+            contexts = broader_contexts[:3] 
             answer = "I found some potentially relevant information, though the match isn't perfect:\n\n"
         else:
             answer = f"I don't have enough relevant information in the uploaded documents to answer this question. The document contains {store.index.ntotal} text chunks. Could you rephrase your question or upload more relevant documents?"
@@ -260,16 +279,13 @@ Answer:"""
                 "debug_info": f"Total chunks: {store.index.ntotal}, Search threshold: 0.05"
             })
     
-    # Build enhanced prompt with context and conversation
     prompt = build_rag_prompt(question, contexts, conversation_context)
     
-    # Generate answer
     answer = generate_with_ollama(
         system_prompt="You are a helpful AI assistant with access to document context. Answer accurately based on the provided information.",
         user_prompt=prompt
     )
     
-    # Add answer to conversation history
     store.add_to_conversation("assistant", answer)
     
     return jsonify({
@@ -294,7 +310,6 @@ def debug_search():
     
     query_emb = embed_texts([question])
     
-    # Test different thresholds
     results = {}
     for threshold in [0.05, 0.1, 0.15, 0.2, 0.25, 0.3]:
         contexts = store.search(query_emb, top_k=10, min_score=threshold)
@@ -310,6 +325,17 @@ def debug_search():
         "total_chunks": store.index.ntotal,
         "search_results": results
     })
+
+
+@app.route("/conversation", methods=["GET"])
+def get_conversation():
+    """Get conversation history for current session"""
+    store = get_or_create_session_store()
+    with store.lock:
+        return jsonify({
+            "ok": True,
+            "conversation": store.conversation_history
+        })
 
 
 @app.route("/test-prompts", methods=["GET"])
