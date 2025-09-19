@@ -5,24 +5,22 @@ from typing import List, Tuple, Dict
 import requests
 
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
+PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
+PERPLEXITY_MODEL = os.getenv("PERPLEXITY_MODEL", "llama-3.1-sonar-large-128k-online")
 
 
 def generate_with_ollama(system_prompt: str, user_prompt: str, timeout: int = 120) -> str:
-    if not OPENROUTER_API_KEY:
-        return "[Error] OPENROUTER_API_KEY not set"
+    if not PERPLEXITY_API_KEY:
+        return "[Error] PERPLEXITY_API_KEY not set"
     
-    url = "https://openrouter.ai/api/v1/chat/completions"
+    url = "https://api.perplexity.ai/chat/completions"
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://crud-backend-uwh6.onrender.com",
-        "X-Title": "PDF RAG Chatbot"
+        "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+        "Content-Type": "application/json"
     }
     
     payload = {
-        "model": OPENROUTER_MODEL,
+        "model": PERPLEXITY_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -45,8 +43,8 @@ def generate_with_ollama(system_prompt: str, user_prompt: str, timeout: int = 12
     except Exception as e:
         error_msg = str(e)
         # Mask API key in error messages
-        if OPENROUTER_API_KEY and OPENROUTER_API_KEY in error_msg:
-            error_msg = error_msg.replace(OPENROUTER_API_KEY, "***MASKED***")
+        if PERPLEXITY_API_KEY and PERPLEXITY_API_KEY in error_msg:
+            error_msg = error_msg.replace(PERPLEXITY_API_KEY, "***MASKED***")
         return f"[LLM error] {error_msg}"
 
 
