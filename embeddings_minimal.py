@@ -4,7 +4,7 @@ import numpy as np
 import requests
 import json
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyB9QwMIYWyqZfwyOWRBKqJQbn-YgBhmtQo")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 EMBEDDING_DIMENSION = 768  # Standard embedding dimension
 
 def embed_texts(texts: List[str]) -> np.ndarray:

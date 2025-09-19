@@ -5,7 +5,7 @@ from typing import List, Tuple, Dict
 import requests
 
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyB9QwMIYWyqZfwyOWRBKqJQbn-YgBhmtQo")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
 
