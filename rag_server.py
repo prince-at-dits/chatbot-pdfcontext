@@ -8,7 +8,7 @@ from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
-from embeddings import embed_texts, EMBEDDING_DIMENSION
+from embeddings_minimal import embed_texts, EMBEDDING_DIMENSION
 from session_store import SessionIndex
 from text_utils import pdf_to_text_chunks
 from llm_client import generate_with_ollama, build_rag_prompt
@@ -29,7 +29,7 @@ CORS(app,
 SESSION_STORES: Dict[str, SessionIndex] = {}
 
 
-from embeddings import embed_texts
+
 
 
 def get_or_create_session_store() -> SessionIndex:
