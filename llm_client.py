@@ -16,7 +16,9 @@ def generate_with_ollama(system_prompt: str, user_prompt: str, timeout: int = 12
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://crud-backend-uwh6.onrender.com",
+        "X-Title": "PDF RAG Chatbot"
     }
     
     payload = {
