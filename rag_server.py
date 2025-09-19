@@ -21,7 +21,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "44v1usagCjTZLFBXzgxUerRBAxBHk0bL")
 CORS(app, 
      supports_credentials=True,
-     origins=['http://localhost:3000', 'http://localhost:8081'],
+     origins=['http://localhost:3000', 'https://pdf-rag-frontend-sandy.vercel.app', 'https://crud-backend-uwh6.onrender.com'],
      allow_headers=['Content-Type', 'X-Session-ID'],
      methods=['GET', 'POST', 'OPTIONS'])
 
