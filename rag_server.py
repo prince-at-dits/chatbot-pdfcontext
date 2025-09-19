@@ -1,4 +1,6 @@
 from dotenv import load_dotenv
+load_dotenv()  # Load environment variables first
+
 import os
 import json
 import uuid
@@ -12,9 +14,6 @@ from embeddings_minimal import embed_texts, EMBEDDING_DIMENSION
 from session_store import SessionIndex
 from text_utils import pdf_to_text_chunks
 from llm_client import generate_with_ollama, build_rag_prompt
-
-
-load_dotenv()
 
 
 app = Flask(__name__)
@@ -234,6 +233,7 @@ def upload():
 @app.route("/ask", methods=["POST"])
 def ask():
     store, sid = get_or_create_session_store()
+    print(f"DEBUG: Store has {store.index.ntotal} chunks")
     try:
         payload = request.get_json(force=True)
     except Exception:
@@ -266,12 +266,17 @@ Answer:"""
         })
     
     query_emb = embed_texts([question])
-    contexts = store.search(query_emb, top_k=6, min_score=0.1)
+    print(f"DEBUG: Query embedding shape: {query_emb.shape}")
+    contexts = store.search(query_emb, top_k=6, min_score=0.01)
+    print(f"DEBUG: Found {len(contexts)} contexts with min_score=0.01")
+    if contexts:
+        print(f"DEBUG: Best match score: {contexts[0][1]:.3f}")
+        print(f"DEBUG: Best match text: {contexts[0][0][:100]}...")
     
     conversation_context = store.get_conversation_context()
     
     if not contexts:
-        broader_contexts = store.search(query_emb, top_k=10, min_score=0.05)
+        broader_contexts = store.search(query_emb, top_k=10, min_score=0.001)
         if broader_contexts:
             contexts = broader_contexts[:3] 
             answer = "I found some potentially relevant information, though the match isn't perfect:\n\n"

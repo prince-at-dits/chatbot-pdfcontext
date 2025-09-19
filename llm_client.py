@@ -6,12 +6,15 @@ import requests
 
 
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
-PERPLEXITY_MODEL = os.getenv("PERPLEXITY_MODEL", "llama-3.1-sonar-large-128k-online")
+PERPLEXITY_MODEL = os.getenv("PERPLEXITY_MODEL", "sonar")
 
+print(f"DEBUG: PERPLEXITY_API_KEY loaded: {'Yes' if PERPLEXITY_API_KEY else 'No'}")
+if PERPLEXITY_API_KEY:
+    print(f"DEBUG: API key starts with: {PERPLEXITY_API_KEY[:10]}...")
 
 def generate_with_ollama(system_prompt: str, user_prompt: str, timeout: int = 120) -> str:
     if not PERPLEXITY_API_KEY:
-        return "[Error] PERPLEXITY_API_KEY not set"
+        return f"[Error] PERPLEXITY_API_KEY not set. Env vars: {list(os.environ.keys())[:5]}"
     
     url = "https://api.perplexity.ai/chat/completions"
     headers = {
@@ -19,11 +22,13 @@ def generate_with_ollama(system_prompt: str, user_prompt: str, timeout: int = 12
         "Content-Type": "application/json"
     }
     
+    # Combine prompts for Perplexity
+    combined_content = f"{system_prompt}\n\nUser: {user_prompt}"
+    
     payload = {
         "model": PERPLEXITY_MODEL,
         "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": combined_content}
         ],
         "temperature": 0.7,
         "max_tokens": 1000
@@ -31,6 +36,12 @@ def generate_with_ollama(system_prompt: str, user_prompt: str, timeout: int = 12
     
     try:
         resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
+        
+        # Debug response
+        print(f"DEBUG: Response status: {resp.status_code}")
+        if resp.status_code != 200:
+            print(f"DEBUG: Response text: {resp.text}")
+            
         resp.raise_for_status()
         data = resp.json()
         
@@ -40,6 +51,9 @@ def generate_with_ollama(system_prompt: str, user_prompt: str, timeout: int = 12
                 return choice["message"]["content"].strip()
         
         return "[Error] No response generated"
+    except requests.exceptions.HTTPError as e:
+        error_msg = f"HTTP {e.response.status_code}: {e.response.text[:200]}"
+        return f"[LLM error] {error_msg}"
     except Exception as e:
         error_msg = str(e)
         # Mask API key in error messages
