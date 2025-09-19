@@ -5,28 +5,28 @@ from typing import List, Tuple, Dict
 import requests
 
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
 
 
 def generate_with_ollama(system_prompt: str, user_prompt: str, timeout: int = 120) -> str:
-    if not GEMINI_API_KEY:
-        return "[Error] GEMINI_API_KEY not set"
+    if not OPENROUTER_API_KEY:
+        return "[Error] OPENROUTER_API_KEY not set"
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
-    headers = {"Content-Type": "application/json"}
-    
-    # Combine system and user prompts for Gemini
-    combined_prompt = f"{system_prompt}\n\n{user_prompt}"
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json"
+    }
     
     payload = {
-        "contents": [{
-            "parts": [{"text": combined_prompt}]
-        }],
-        "generationConfig": {
-            "temperature": 0.7,
-            "maxOutputTokens": 1000
-        }
+        "model": OPENROUTER_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 0.7,
+        "max_tokens": 1000
     }
     
     try:
@@ -34,19 +34,17 @@ def generate_with_ollama(system_prompt: str, user_prompt: str, timeout: int = 12
         resp.raise_for_status()
         data = resp.json()
         
-        if "candidates" in data and len(data["candidates"]) > 0:
-            candidate = data["candidates"][0]
-            if "content" in candidate and "parts" in candidate["content"]:
-                parts = candidate["content"]["parts"]
-                if len(parts) > 0 and "text" in parts[0]:
-                    return parts[0]["text"].strip()
+        if "choices" in data and len(data["choices"]) > 0:
+            choice = data["choices"][0]
+            if "message" in choice and "content" in choice["message"]:
+                return choice["message"]["content"].strip()
         
         return "[Error] No response generated"
     except Exception as e:
         error_msg = str(e)
         # Mask API key in error messages
-        if GEMINI_API_KEY and GEMINI_API_KEY in error_msg:
-            error_msg = error_msg.replace(GEMINI_API_KEY, "***MASKED***")
+        if OPENROUTER_API_KEY and OPENROUTER_API_KEY in error_msg:
+            error_msg = error_msg.replace(OPENROUTER_API_KEY, "***MASKED***")
         return f"[LLM error] {error_msg}"
 
 

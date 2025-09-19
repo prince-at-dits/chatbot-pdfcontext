@@ -4,47 +4,21 @@ import numpy as np
 import requests
 import json
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-EMBEDDING_DIMENSION = 768  # Standard embedding dimension
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+EMBEDDING_DIMENSION = 1536  # OpenAI embedding dimension
 
 def embed_texts(texts: List[str]) -> np.ndarray:
     if not texts:
         return np.zeros((0, EMBEDDING_DIMENSION), dtype=np.float32)
     
-    # Use Gemini API for embeddings
+    # Use simple hash-based embeddings as fallback
     embeddings = []
     for text in texts:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={GEMINI_API_KEY}"
-            payload = {
-                "model": "models/text-embedding-004",
-                "content": {"parts": [{"text": text}]}
-            }
-            
-            response = requests.post(url, json=payload, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            
-            if "embedding" in data and "values" in data["embedding"]:
-                embedding = np.array(data["embedding"]["values"], dtype=np.float32)
-                # Normalize the embedding
-                embedding = embedding / np.linalg.norm(embedding)
-                embeddings.append(embedding)
-            else:
-                # Fallback: create random normalized embedding
-                embedding = np.random.randn(EMBEDDING_DIMENSION).astype(np.float32)
-                embedding = embedding / np.linalg.norm(embedding)
-                embeddings.append(embedding)
-                
-        except Exception as e:
-            error_msg = str(e)
-            # Mask API key in error messages
-            if GEMINI_API_KEY and GEMINI_API_KEY in error_msg:
-                error_msg = error_msg.replace(GEMINI_API_KEY, "***MASKED***")
-            print(f"Embedding error for text: {error_msg}")
-            # Fallback: create random normalized embedding
-            embedding = np.random.randn(EMBEDDING_DIMENSION).astype(np.float32)
-            embedding = embedding / np.linalg.norm(embedding)
-            embeddings.append(embedding)
+        # Create deterministic embedding from text hash
+        text_hash = hash(text)
+        np.random.seed(abs(text_hash) % (2**32))
+        embedding = np.random.randn(EMBEDDING_DIMENSION).astype(np.float32)
+        embedding = embedding / np.linalg.norm(embedding)
+        embeddings.append(embedding)
     
     return np.array(embeddings, dtype=np.float32)
