@@ -5,34 +5,43 @@ from typing import List, Tuple, Dict
 import requests
 
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyB9QwMIYWyqZfwyOWRBKqJQbn-YgBhmtQo")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
 
 def generate_with_ollama(system_prompt: str, user_prompt: str, timeout: int = 120) -> str:
-    url = f"{OLLAMA_URL}/api/chat"
+    if not GEMINI_API_KEY:
+        return "[Error] GEMINI_API_KEY not set"
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     headers = {"Content-Type": "application/json"}
+    
+    # Combine system and user prompts for Gemini
+    combined_prompt = f"{system_prompt}\n\n{user_prompt}"
+    
     payload = {
-        "model": OLLAMA_MODEL,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        "stream": False,
-        "options": {
-            "num_thread": 20
+        "contents": [{
+            "parts": [{"text": combined_prompt}]
+        }],
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 1000
         }
     }
+    
     try:
-        resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=timeout)
+        resp = requests.post(url, headers=headers, json=payload, timeout=timeout)
         resp.raise_for_status()
         data = resp.json()
-        if isinstance(data, dict):
-            msg = data.get("message", {})
-            content = msg.get("content") or data.get("response")
-            if content:
-                return content.strip()
-        return ""
+        
+        if "candidates" in data and len(data["candidates"]) > 0:
+            candidate = data["candidates"][0]
+            if "content" in candidate and "parts" in candidate["content"]:
+                parts = candidate["content"]["parts"]
+                if len(parts) > 0 and "text" in parts[0]:
+                    return parts[0]["text"].strip()
+        
+        return "[Error] No response generated"
     except Exception as e:
         return f"[LLM error] {e}"
 
