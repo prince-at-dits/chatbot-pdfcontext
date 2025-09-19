@@ -37,7 +37,11 @@ def embed_texts(texts: List[str]) -> np.ndarray:
                 embeddings.append(embedding)
                 
         except Exception as e:
-            print(f"Embedding error for text: {e}")
+            error_msg = str(e)
+            # Mask API key in error messages
+            if GEMINI_API_KEY and GEMINI_API_KEY in error_msg:
+                error_msg = error_msg.replace(GEMINI_API_KEY, "***MASKED***")
+            print(f"Embedding error for text: {error_msg}")
             # Fallback: create random normalized embedding
             embedding = np.random.randn(EMBEDDING_DIMENSION).astype(np.float32)
             embedding = embedding / np.linalg.norm(embedding)

@@ -43,7 +43,11 @@ def generate_with_ollama(system_prompt: str, user_prompt: str, timeout: int = 12
         
         return "[Error] No response generated"
     except Exception as e:
-        return f"[LLM error] {e}"
+        error_msg = str(e)
+        # Mask API key in error messages
+        if GEMINI_API_KEY and GEMINI_API_KEY in error_msg:
+            error_msg = error_msg.replace(GEMINI_API_KEY, "***MASKED***")
+        return f"[LLM error] {error_msg}"
 
 
 def build_rag_prompt(question: str, contexts: List[Tuple[str, float, Dict]], conversation_context: str = "") -> str:
