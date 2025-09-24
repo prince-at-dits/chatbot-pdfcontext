@@ -92,9 +92,19 @@ def index():
         const f = document.getElementById('pdfs');
         const fd = new FormData();
         for (const file of f.files) fd.append('files', file);
-        const res = await fetch('/upload', { method: 'POST', body: fd });
-        const j = await res.json();
-        document.getElementById('ingestStatus').textContent = JSON.stringify(j, null, 2);
+        try {
+          const res = await fetch('/upload', { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
+          const ct = res.headers.get('content-type') || '';
+          if (!ct.includes('application/json')) {
+            const txt = await res.text();
+            document.getElementById('ingestStatus').textContent = `Non-JSON response (status ${res.status}):\n` + txt;
+            return;
+          }
+          const j = await res.json();
+          document.getElementById('ingestStatus').textContent = JSON.stringify(j, null, 2);
+        } catch (e) {
+          document.getElementById('ingestStatus').textContent = 'Upload error: ' + (e && e.message ? e.message : 'request failed');
+        }
       }
       async function loadConversation() {
         try {
@@ -126,7 +136,19 @@ def index():
         info.textContent = '';
         
         try {
-          const res = await fetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) });
+          const res = await fetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ question: q }) });
+          const ct = res.headers.get('content-type') || '';
+          if (!ct.includes('application/json')) {
+            const txt = await res.text();
+            info.textContent = `Non-JSON response (status ${res.status}).`;
+            const conv = document.getElementById('conversation');
+            const div = document.createElement('div');
+            div.className = 'msg assistant';
+            div.textContent = txt.slice(0, 1000);
+            conv.appendChild(div);
+            conv.scrollTop = conv.scrollHeight;
+            return;
+          }
           const j = await res.json();
           
           // Show additional info
