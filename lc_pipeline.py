@@ -40,11 +40,15 @@ class LCPipeline:
 
 			loader = PyPDFLoader(tmp_path)
 			documents = loader.load()
+			if not documents:
+				raise ValueError("No extractable text pages found in the PDF")
 			self.metadata["name"] = filename
 			self.metadata["num_pages"] = len(documents)
 
 			splitter = RecursiveCharacterTextSplitter(chunk_size=400, chunk_overlap=60)
 			docs = splitter.split_documents(documents)
+			if not docs:
+				raise ValueError("No text chunks extracted from the PDF. The file may be scanned images only.")
 
 			hf_emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 			if self.vector_db is None:
