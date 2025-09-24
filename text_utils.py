@@ -5,7 +5,7 @@ from typing import List, Tuple, Dict
 from PyPDF2 import PdfReader
 
 
-def chunk_text(text: str, max_chars: int = 600, overlap: int = 150) -> List[str]:
+def chunk_text(text: str, max_chars: int = 500, overlap: int = 100) -> List[str]:
     """Sentence-aware chunking with overlap."""
     sentences = re.split(r'(?<=[.!?])\s+', text)
     chunks: List[str] = []
@@ -19,7 +19,7 @@ def chunk_text(text: str, max_chars: int = 600, overlap: int = 150) -> List[str]
             current_chunk += " " + sentence if current_chunk else sentence
     if current_chunk.strip():
         chunks.append(current_chunk.strip())
-    return [c for c in chunks if len(c.strip()) > 50]
+    return [c for c in chunks if len(c.strip()) > 30]
 
 
 def pdf_to_text_chunks(pdf_bytes: bytes) -> List[Tuple[str, Dict]]:
