@@ -43,10 +43,10 @@ class LCPipeline:
 			self.metadata["name"] = filename
 			self.metadata["num_pages"] = len(documents)
 
-			splitter = RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=100)
+			splitter = RecursiveCharacterTextSplitter(chunk_size=400, chunk_overlap=60)
 			docs = splitter.split_documents(documents)
 
-			hf_emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+			hf_emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 			if self.vector_db is None:
 				self.vector_db = LC_FAISS.from_documents(docs, hf_emb)
 			else:
@@ -62,7 +62,7 @@ class LCPipeline:
 			self.entities = sorted(set(filtered))
 
 			AI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
-			llm = ChatOpenAI(model=AI_MODEL, temperature=0.2, api_key=os.getenv("OPENAI_API_KEY"))
+			llm = ChatOpenAI(model=AI_MODEL, temperature=0.7, api_key=os.getenv("OPENAI_API_KEY"))
 			prompt_template = """
 You are a helpful AI assistant with access to a PDF document.
 
