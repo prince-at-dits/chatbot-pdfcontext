@@ -11,3 +11,4 @@ langchain-openai>=0.1.22
 sentence-transformers>=2.2.2
 faiss-cpu>=1.7.4
 PyPDF2>=3.0.1
+pypdf>=3.0.0
