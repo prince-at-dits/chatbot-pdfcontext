@@ -2,16 +2,12 @@ services:
   - type: web
     name: pdf-rag-chatbot
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements-minimal.txt
     startCommand: python rag_server.py
     envVars:
       - key: HOST
         value: 0.0.0.0
       - key: PORT
         value: 10000
-      - key: FLASK_SECRET_KEY
-        generateValue: true
-      - key: OLLAMA_URL
-        value: https://your-ollama-server.com
-      - key: OLLAMA_MODEL
-        value: llama3.2
+      - key: OPENAI_MODEL
+        value: gpt-4o
